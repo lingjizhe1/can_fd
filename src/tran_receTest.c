@@ -22,6 +22,8 @@
 // 定义调试开关
 // #define DEBUG_CAN_BUFFER
 
+
+
 // 定义共享变量（放在共享内存段中）
 
 #if (BOARD_RUNNING_CORE == HPM_CORE0)
