@@ -1,0 +1,69 @@
+# 编译输出目录 - 只忽略编译产生的子目录
+core0/*/
+core1/*/
+
+# CMake生成的文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+build.ninja
+compile_commands.json
+build_tmp/
+
+# 编译输出文件
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.dis
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+
+# 库文件目录
+lib/
+output/
+
+# IDE项目文件
+segger_embedded_studio/
+iar_embedded_workbench/
+*.uvprojx
+*.uvoptx
+*.uvguix.*
+*.eww
+*.ewp
+*.ewd
+*.uvmpw
+*.uvguix
+*.uvguix.*
+*.uvopt
+*.uvproj
+
+# 调试文件
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# 临时文件
+*.tmp
+*.temp
+*~
+.#*
+\#*#
+
+# 日志文件
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 备份文件
+*.bak
+*.backup
