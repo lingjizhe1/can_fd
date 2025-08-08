@@ -1,6 +1,6 @@
 # 编译输出目录 - 只忽略编译产生的子目录
-core0/hpm6750evkmini_flash_sdram_xip_debug/
-core1/hpm6750evkmini_flash_sdram_xip_debug/
+core0/hpm6750evkmini_flash_sdram_xip_debug/*
+core1/hpm6750evkmini_flash_sdram_xip_debug/*
 
 # CMake生成的文件
 CMakeCache.txt
@@ -15,7 +15,7 @@ build_tmp/
 *.obj
 *.elf
 *.bin
-*.hex
+*.hex 
 *.map
 *.lst
 *.dis
