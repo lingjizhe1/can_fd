@@ -23,6 +23,8 @@
 // #define DEBUG_CAN_BUFFER
 //测试一下合并
 
+
+
 // 定义共享变量（放在共享内存段中）
 
 #if (BOARD_RUNNING_CORE == HPM_CORE0)
