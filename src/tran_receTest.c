@@ -42,7 +42,7 @@ volatile can_receive_buf_t s_can_rx_buf;
 #endif
 extern  volatile bool can_read;
 extern  volatile bool can_send;
-#if (BOARD_RUNNING_CORE == HPM_CORE0)
+
 
 
 // 内存规划优化：共享内存16KB限制
@@ -58,6 +58,13 @@ SHARED_STRUCT_ALIGN share_buffer_t ram_buffer_block;
 SHARED_STRUCT_ALIGN share_buffer_item_t ram_buffer_block_items[RAM_BUFFER_BLOCK_SIZE];
 SHARED_CACHELINE_ALIGN can_receive_buf_t ram_buffer[RAM_BUFFER_BLOCK_SIZE][MAX_CAN_BUFFER_SIZE];
 
+#define AXI_SRAM_CAN_BUFFER_COUNT (2048)
+#define AXI_SRAM_ALIGN  __attribute__((section(".axi_sram"), aligned(HPM_L1C_CACHELINE_SIZE)))
+AXI_SRAM_ALIGN can_receive_buf_t axi_sram_can_buffers[AXI_SRAM_CAN_BUFFER_COUNT];
+
+
+
+#if (BOARD_RUNNING_CORE == HPM_CORE0)
 void ram_buffer_block_init(void)
 {
     for(int i = 0; i < RAM_BUFFER_BLOCK_SIZE; i++)
@@ -134,6 +141,8 @@ void board_can_loopback_test_in_interrupt_mode(void)
 }
 /* 优化的CAN中断处理函数 - 直接写入共享内存 */
 
+
+int msg_rx_cnt = 0;
 SDK_DECLARE_EXT_ISR_M(BOARD_APP_CAN_IRQn, board_can_isr)
 void board_can_isr(void)
 {
@@ -145,14 +154,18 @@ void board_can_isr(void)
  
         
         /* 读can并且写共享内存*/
-
+        msg_rx_cnt++;
+        if(msg_rx_cnt == 2048)
+        {
+            printf("msg cnt = 2048\n");
+        }
         
         
         assert(ram_buffer_block.is_full == false);
         hpm_stat_t read_status = can_read_received_message(BOARD_APP_CAN_BASE, get_writeable_ram(&ram_buffer_block));
         
         if (read_status == status_success) {
-           // printf("write to ram buffer success,the count is %d\n",count++);
+           printf("write to ram buffer success,the count is %d\n",count++);
             has_new_rcv_msg = true;
             //printf("can isr exit");
           
@@ -236,7 +249,34 @@ int8_t write_head_switch(share_buffer_t* block)
 #else
 /* consumer */
 
+int8_t Oconsume_head_switch(share_buffer_t* block)
+{
 
+    if(block->consume_head->next->status == SHARE_BUFFER_STATUS_FULL)
+    {
+        block->consume_head = block->consume_head->next;
+        block->consume_head->status = SHARE_BUFFER_STATUS_READING;
+        return 0;
+    }else{
+        return -1;
+    }
+
+}
+
+
+int8_t Ocopy_to_axi_sram(share_buffer_t* block)
+{
+    //if(block->consume_head->status == SHARE_BUFFER_STATUS_READING)
+    //{
+    //  //  memcpy(&axi_sram_can_buffers[block->consume_save_index], block->consume_head->data, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
+    //    block->consume_save_index += MAX_CAN_BUFFER_SIZE;
+    //    block->consume_head->status = SHARE_BUFFER_STATUS_IDLE;
+    
+    //    memset(block->consume_head->data, 0, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
+    //    return 0;
+    //}
+    return -1;
+}
 #endif
 
 
@@ -250,16 +290,17 @@ int main(void)
    
     
     board_init();
-
+     memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
     multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
    clock_add_to_group(clock_mbx0, 0);
-   
+       printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
+    printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
     
     ram_buffer_block_init();
     mbx_interrupt_init();
     board_can_loopback_test_in_interrupt_mode();
     
-  
+   // while(1);
 
         
     return 0;
@@ -268,14 +309,18 @@ int main(void)
 
 int main(void)
 {
-
+    uint8_t ret = 0;
     long long int i = 0;
     board_init_core1();
+    memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
     mbx_init(HPM_MBX0B);
     hpm_stat_t stat;
-
+  intc_m_enable_irq_with_priority(IRQn_MBX0B, 2);
     printf("HPM_MBX0B CR: 0x%x\n", HPM_MBX0B->CR);
     printf(" success\n");
+    printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
+    printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
+              
     
     clock_add_to_group(clock_mbx0, 0);
     mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
@@ -286,14 +331,32 @@ int main(void)
             if (stat == status_success) {
                 printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
                 printf("notice_count: %d\n", notice_count);
-            } else {
-                printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
-                
-            }
+                              ret = Oconsume_head_switch(&ram_buffer_block);
+            //    if(ret == 0)
+            //    {
+            //        ret = Ocopy_to_axi_sram(&ram_buffer_block);
+            //        if(ret == 0)
+            //        {
+            //            printf("copy to axi_sram success\n");
+            //        }
+            //        else
+            //        {
+            //            printf("copy to axi_sram failed\n");
+            //        }
+            //    }
+            //    else
+            //    {
+            //        printf("consume_head_switch failed\n");
+            //    }
+           
+            //} else {
+            //    printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
+
+            //}
+              
             can_read = false;
             mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
-            
-            
+            }
         }
     }
 }
