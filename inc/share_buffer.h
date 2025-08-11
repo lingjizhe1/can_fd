@@ -23,6 +23,7 @@ typedef struct share_buffer_item_t
 }share_buffer_item_t;
 
 typedef struct {
+    uint16_t consume_save_index; /*核1将从共享区域的数据存在一个数组里面 需要知道现在保存到哪个位置了提供给下次使用*/
     share_buffer_item_t* items;
     uint16_t size;
     uint16_t wait;

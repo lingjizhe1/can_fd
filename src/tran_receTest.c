@@ -42,7 +42,7 @@ volatile can_receive_buf_t s_can_rx_buf;
 #endif
 extern  volatile bool can_read;
 extern  volatile bool can_send;
-#if (BOARD_RUNNING_CORE == HPM_CORE0)
+
 
 
 // 内存规划优化：共享内存16KB限制
@@ -58,6 +58,12 @@ SHARED_STRUCT_ALIGN share_buffer_t ram_buffer_block;
 SHARED_STRUCT_ALIGN share_buffer_item_t ram_buffer_block_items[RAM_BUFFER_BLOCK_SIZE];
 SHARED_CACHELINE_ALIGN can_receive_buf_t ram_buffer[RAM_BUFFER_BLOCK_SIZE][MAX_CAN_BUFFER_SIZE];
 
+// 在AXI_SRAM中静态分配2048个CAN接收缓冲区
+#define AXI_SRAM_CAN_BUFFER_COUNT (2048)
+#define AXI_SRAM_ALIGN  __attribute__((section(".axi_sram"), aligned(HPM_L1C_CACHELINE_SIZE)))
+AXI_SRAM_ALIGN can_receive_buf_t axi_sram_can_buffers[AXI_SRAM_CAN_BUFFER_COUNT];
+
+#if (BOARD_RUNNING_CORE == HPM_CORE0)
 void ram_buffer_block_init(void)
 {
     for(int i = 0; i < RAM_BUFFER_BLOCK_SIZE; i++)
@@ -89,7 +95,7 @@ void board_can_loopback_test_in_interrupt_mode(void)
         printf("CAN initialization failed, error code: %d\n", status);
         return;
     }
-    intc_m_enable_irq_with_priority(BOARD_APP_CAN_IRQn, 1);  // CAN中断优先级设为1，允许MBX中断嵌套
+    intc_m_enable_irq_with_priority(BOARD_APP_CAN_IRQn, 1); /*数字越大，优先级越高*/
 
     can_transmit_buf_t tx_buf;
     memset(&tx_buf, 0, sizeof(tx_buf));
@@ -149,10 +155,10 @@ void board_can_isr(void)
         
         
         assert(ram_buffer_block.is_full == false);
-        hpm_stat_t read_status = can_read_received_message(BOARD_APP_CAN_BASE, get_writeable_ram(&ram_buffer_block));
+        hpm_stat_t read_status = can_read_received_message(BOARD_APP_CAN_BASE, Zget_writeable_ram(&ram_buffer_block));
         
         if (read_status == status_success) {
-           // printf("write to ram buffer success,the count is %d\n",count++);
+           printf("write to ram buffer success,the count is %d\n",count++);
             has_new_rcv_msg = true;
             //printf("can isr exit");
           
@@ -183,7 +189,7 @@ void board_can_isr(void)
 }
 
 /* 获取可用的共享内存 */
-can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
+can_receive_buf_t* Zget_writeable_ram(share_buffer_t* block)
 {
     int8_t ret = 0;
     
@@ -200,7 +206,7 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
         //printf("get_writeable_ram():write_head is full,switch to next item\n");
                      
         //item_full_notice();
-        ret = write_head_switch(block);
+        ret = Zwrite_head_switch(block);
         if(ret == -1)
         {   
             //printf("get_writeable_ram():next item is not available\n");
@@ -218,7 +224,7 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
 }
 
 /* 写头切换 */
-int8_t write_head_switch(share_buffer_t* block)
+int8_t Zwrite_head_switch(share_buffer_t* block)
 {
     if(block->write_head->next->status == SHARE_BUFFER_STATUS_IDLE)
     {
@@ -235,6 +241,34 @@ int8_t write_head_switch(share_buffer_t* block)
 }
 #else
 /* consumer */
+int8_t Oconsume_head_switch(share_buffer_t* block)
+{
+
+    if(block->consume_head->next->status == SHARE_BUFFER_STATUS_FULL)
+    {
+        block->consume_head = block->consume_head->next;
+        block->consume_head->status = SHARE_BUFFER_STATUS_READING;
+        return 0;
+    }else{
+        return -1;
+    }
+
+}
+
+
+int8_t Ocopy_to_axi_sram(share_buffer_t* block)
+{
+    if(block->consume_head->status == SHARE_BUFFER_STATUS_READING)
+    {
+        memcpy(&axi_sram_can_buffers[block->consume_save_index], block->consume_head->data, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
+        block->consume_save_index += MAX_CAN_BUFFER_SIZE;
+        block->consume_head->status = SHARE_BUFFER_STATUS_IDLE;
+        // 清空已读取的数据缓冲区
+        memset(block->consume_head->data, 0, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
+        return 0;
+    }
+    return -1;
+}
 
 
 #endif
@@ -268,12 +302,12 @@ int main(void)
 
 int main(void)
 {
-
+    int8_t ret = 0;
     long long int i = 0;
     board_init_core1();
     mbx_init(HPM_MBX0B);
     hpm_stat_t stat;
-
+    
     printf("HPM_MBX0B CR: 0x%x\n", HPM_MBX0B->CR);
     printf(" success\n");
     
@@ -286,6 +320,24 @@ int main(void)
             if (stat == status_success) {
                 printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
                 printf("notice_count: %d\n", notice_count);
+                ret = Oconsume_head_switch(&ram_buffer_block);
+                if(ret == 0)
+                {
+                    ret = Ocopy_to_axi_sram(&ram_buffer_block);
+                    if(ret == 0)
+                    {
+                        printf("copy to axi_sram success\n");
+                    }
+                    else
+                    {
+                        printf("copy to axi_sram failed\n");
+                    }
+                }
+                else
+                {
+                    printf("consume_head_switch failed\n");
+                }
+           
             } else {
                 printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
                 

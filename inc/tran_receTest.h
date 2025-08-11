@@ -19,8 +19,13 @@
 //// 声明共享变量（放在共享内存段中）
 //volatile shared_memory_t g_shared_memory __attribute__((section(".sh_mem")));
 //volatile shared_memory_t g_shared_memory2 __attribute__((section(".sh_mem")));
-can_receive_buf_t* get_writeable_ram(share_buffer_t* block);
-int8_t write_head_switch(share_buffer_t* block);
+can_receive_buf_t* Zget_writeable_ram(share_buffer_t* block);
+int8_t Zwrite_head_switch(share_buffer_t* block);
+
+// AXI_SRAM CAN缓冲区相关函数声明
+#define AXI_SRAM_CAN_BUFFER_COUNT (2048)
+extern can_receive_buf_t axi_sram_can_buffers[AXI_SRAM_CAN_BUFFER_COUNT];
+
 
 
 
