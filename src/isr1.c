@@ -1,8 +1,8 @@
 
- #if (BOARD_RUNNING_CORE == HPM_CORE0)
- #else
+  #if (BOARD_RUNNING_CORE == HPM_CORE1)
+
  #include "hpm_mbx_drv.h"
- #include "app_mbx.h"
+ 
  #include "board.h"
  #include "isr1.h"  
  
@@ -25,7 +25,7 @@
      } 
  
  }
- #endif
+#endif
  
  
  

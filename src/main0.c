@@ -117,8 +117,9 @@
     clock_add_to_group(clock_mbx0, 0);
      //printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
      //printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
-     clock_cpu_delay_ms(1000);
+    
      multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
+     clock_cpu_delay_ms(1000);
     clock_add_to_group(clock_mbx0, 0);
     
      

@@ -1,6 +1,6 @@
 
- #if (BOARD_RUNNING_CORE == HPM_CORE0)
- #else
+ #if (BOARD_RUNNING_CORE == HPM_CORE1)
+ 
  #include <stdio.h>
  #include <string.h>
  #include <stdbool.h>
@@ -9,15 +9,31 @@
  #include "../inc/tran_receTest.h"
  #include "hpm_can_drv.h"
  #include "share_buffer.h"
- #include "can_test.h"
+
  #include "hpm_soc_feature.h"
  #include "hpm_mbx_drv.h"
- #include "app_mbx.h"
+
  #include "global.h"
 
+extern volatile bool can_read;
+extern volatile bool can_send;
+extern volatile uint8_t notice_count;
+ 
+  // 内存规划优化：共享内存16KB限制
+  #define RAM_BUFFER_BLOCK_SIZE (4)
+  #define MAX_CAN_BUFFER_SIZE (50)    // 从1024降到50，适应16KB共享内存
+  // 计算：4 × 50 × 80 = 16,000字节 ≈ 15.6KB
+  
+  
+  // 将CAN缓冲区放置在共享内存中，用于核间通信
+  #define SHARED_CACHELINE_ALIGN  __attribute__((section(".sh_mem"), aligned(HPM_L1C_CACHELINE_SIZE)))
+  #define SHARED_STRUCT_ALIGN     __attribute__((section(".sh_mem"), aligned(32)))
+  SHARED_STRUCT_ALIGN share_buffer_t ram_buffer_block;
+  SHARED_STRUCT_ALIGN share_buffer_item_t ram_buffer_block_items[RAM_BUFFER_BLOCK_SIZE];
+  SHARED_CACHELINE_ALIGN can_receive_buf_t ram_buffer[RAM_BUFFER_BLOCK_SIZE][MAX_CAN_BUFFER_SIZE];
 
- 
- 
+
+
  #define AXI_SRAM_CAN_BUFFER_COUNT (2048)
  #define AXI_SRAM_ALIGN  __attribute__((section(".axi_sram"), aligned(HPM_L1C_CACHELINE_SIZE)))
  AXI_SRAM_ALIGN can_receive_buf_t axi_sram_can_buffers[AXI_SRAM_CAN_BUFFER_COUNT];
@@ -63,7 +79,7 @@
      
      clock_add_to_group(clock_mbx0, 0);
      mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
-       while(1);
+
      /* reciever */
      while (1) {
          if (can_read) {
@@ -71,7 +87,7 @@
              if (stat == status_success) {
                  printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
                  printf("notice_count: %d\n", notice_count);
-                             ret = Oconsume_head_switch(&ram_buffer_block);
+                             //ret = Oconsume_head_switch(&ram_buffer_block);
              //    if(ret == 0)
              //    {
              //        ret = Ocopy_to_axi_sram(&ram_buffer_block);
