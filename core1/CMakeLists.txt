@@ -15,8 +15,9 @@ sdk_app_inc(../../common)
 sdk_app_inc(../inc)
 sdk_app_inc($ENV{HPM_SDK_PATH}/soc/HPM6700/ip)
 # 主要源文件
-sdk_app_src(../src/tran_receTest.c)
-sdk_app_src(../src/app_mbx.c)
+sdk_app_src(../src/main1.c)
+#sdk_app_src(../src/app_mbx.c)
+sdk_app_src(../src/isr1.c)
 
 # 共享内存访问相关源文件 (Core1需要读取共享内存中的CAN数据)
 sdk_app_src(../src/share_buffer.c)

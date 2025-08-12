@@ -13,13 +13,14 @@ sdk_app_inc(../inc)
 sdk_app_inc($ENV{HPM_SDK_PATH}/soc/HPM6700/ip)
 
 # 主要源文件
-sdk_app_src(../src/tran_receTest.c)
+sdk_app_src(../src/main0.c)
 sdk_app_src(../../common/multicore_common.c)
 sdk_app_src(../src/sec_core_img.c)
-sdk_app_src(../src/app_mbx.c)
+#sdk_app_src(../src/app_mbx.c)
+sdk_app_src(../src/isr0.c)
 
 # CAN相关源文件
-sdk_app_src(../src/can_test.c)
+
 sdk_app_src(../src/share_buffer.c)
 
 # 生成IDE项目文件

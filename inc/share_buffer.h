@@ -37,7 +37,17 @@ typedef struct {
 
 void share_buffer_item_init(share_buffer_item_t* item, can_receive_buf_t* data, uint16_t size);
 void share_buffer_init(share_buffer_t* block, share_buffer_item_t* items, uint16_t size);
+void ram_buffer_block_init(void);
+can_receive_buf_t* get_writeable_ram(share_buffer_t* block);
+int8_t write_head_switch(share_buffer_t* block);
+ 
+
+#if (BOARD_RUNNING_CORE == HPM_CORE0)
+#else
+  /* consumer */
+ 
+int8_t Oconsume_head_switch(share_buffer_t* block);
 
 #endif
-
+#endif
 

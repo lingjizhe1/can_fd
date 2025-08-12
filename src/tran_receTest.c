@@ -208,6 +208,7 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
               
             
     /* item 满了*/
+    printf("block->write_head->current_index +1 = %d",block->write_head->current_index + 1);
     if(block->write_head->current_index + 1> block->write_head->max_index){
         block->write_head->status = SHARE_BUFFER_STATUS_FULL;
         uint8_t index = block->write_head->current_index;
@@ -296,8 +297,10 @@ int main(void)
    clock_add_to_group(clock_mbx0, 0);
     //printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
     //printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
-    clock_cpu_delay_ms(1000);
+   
+    printf("core0:ready to release core1");
     multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
+   //  clock_cpu_delay_ms(1000);
    clock_add_to_group(clock_mbx0, 0);
    
     
@@ -319,25 +322,24 @@ int main(void)
     uint8_t ret = 0;
     long long int i = 0;
     board_init_core1();
-    memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
+ 
+   
     
     mbx_init(HPM_MBX0B);
     hpm_stat_t stat;
-    memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
+    
          
-
+    
   intc_m_enable_irq_with_priority(IRQn_MBX0B, 2);
     printf("HPM_MBX0B CR: 0x%x\n", HPM_MBX0B->CR);
     printf(" success\n");
+ 
     printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
-    printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
-              
-      printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
-    printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
-    while(1);
+    //printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
+    
     clock_add_to_group(clock_mbx0, 0);
     mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
-     
+      while(1);
     /* reciever */
     while (1) {
         if (can_read) {
