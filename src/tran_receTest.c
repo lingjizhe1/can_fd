@@ -57,13 +57,14 @@ extern  volatile bool can_send;
 SHARED_STRUCT_ALIGN share_buffer_t ram_buffer_block;
 SHARED_STRUCT_ALIGN share_buffer_item_t ram_buffer_block_items[RAM_BUFFER_BLOCK_SIZE];
 SHARED_CACHELINE_ALIGN can_receive_buf_t ram_buffer[RAM_BUFFER_BLOCK_SIZE][MAX_CAN_BUFFER_SIZE];
-
+#if (BOARD_RUNNING_CORE == HPM_CORE0)
+#else
 #define AXI_SRAM_CAN_BUFFER_COUNT (2048)
 #define AXI_SRAM_ALIGN  __attribute__((section(".axi_sram"), aligned(HPM_L1C_CACHELINE_SIZE)))
 AXI_SRAM_ALIGN can_receive_buf_t axi_sram_can_buffers[AXI_SRAM_CAN_BUFFER_COUNT];
 
 
-
+#endif
 #if (BOARD_RUNNING_CORE == HPM_CORE0)
 void ram_buffer_block_init(void)
 {
@@ -161,7 +162,8 @@ void board_can_isr(void)
         }
         
         
-        assert(ram_buffer_block.is_full == false);
+       // assert(ram_buffer_block.is_full == false);
+        while(ram_buffer_block.is_full == true);
         hpm_stat_t read_status = can_read_received_message(BOARD_APP_CAN_BASE, get_writeable_ram(&ram_buffer_block));
         
         if (read_status == status_success) {
@@ -282,24 +284,27 @@ int8_t Ocopy_to_axi_sram(share_buffer_t* block)
 
 
 
+
 #if (BOARD_RUNNING_CORE == HPM_CORE0)
 int main(void)
 {
-   
-    
-   
-    
+
     board_init();
-     memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
+    
+    //multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
+    //memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
+   clock_add_to_group(clock_mbx0, 0);
+    //printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
+    //printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
+    clock_cpu_delay_ms(1000);
     multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
    clock_add_to_group(clock_mbx0, 0);
-       printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
-    printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
+   
     
     ram_buffer_block_init();
     mbx_interrupt_init();
     board_can_loopback_test_in_interrupt_mode();
-    
+    while(1);
    // while(1);
 
         
@@ -309,21 +314,30 @@ int main(void)
 
 int main(void)
 {
+
+    
     uint8_t ret = 0;
     long long int i = 0;
     board_init_core1();
     memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
+    
     mbx_init(HPM_MBX0B);
     hpm_stat_t stat;
+    memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
+         
+
   intc_m_enable_irq_with_priority(IRQn_MBX0B, 2);
     printf("HPM_MBX0B CR: 0x%x\n", HPM_MBX0B->CR);
     printf(" success\n");
     printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
     printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
               
-    
+      printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
+    printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
+    while(1);
     clock_add_to_group(clock_mbx0, 0);
     mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
+     
     /* reciever */
     while (1) {
         if (can_read) {
@@ -331,7 +345,7 @@ int main(void)
             if (stat == status_success) {
                 printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
                 printf("notice_count: %d\n", notice_count);
-                              ret = Oconsume_head_switch(&ram_buffer_block);
+                            ret = Oconsume_head_switch(&ram_buffer_block);
             //    if(ret == 0)
             //    {
             //        ret = Ocopy_to_axi_sram(&ram_buffer_block);

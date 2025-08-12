@@ -24,7 +24,7 @@ build_tmp/
 *.so
 *.dll
 *.exe
-
+sec_core_img.c
 # 库文件目录
 lib/
 output/
