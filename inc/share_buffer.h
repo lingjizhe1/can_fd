@@ -30,6 +30,7 @@ typedef struct {
     share_buffer_item_t* write_head;
     share_buffer_item_t* consume_head;
     bool is_full;
+    uint16_t consume_save_index;
 }share_buffer_t;
 
 

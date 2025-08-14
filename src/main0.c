@@ -13,6 +13,7 @@
 
  #include "hpm_soc_feature.h"
  #include "hpm_mbx_drv.h"
+ #include "hpm_gptmr_drv.h"
 
 
 
@@ -27,16 +28,21 @@
  
 
  extern  volatile bool can_read;
- extern  volatile bool can_send;
+extern  volatile bool can_send;
+
+// Timer related variables
+
+// Data recording array - record transmission count per millisecond
+
  
  
-  // 内存规划优化：共享内存16KB限制
+  // Memory optimization: 16KB shared memory limit
   #define RAM_BUFFER_BLOCK_SIZE (4)
-  #define MAX_CAN_BUFFER_SIZE (50)    // 从1024降到50，适应16KB共享内存
-  // 计算：4 × 50 × 80 = 16,000字节 ≈ 15.6KB
+  #define MAX_CAN_BUFFER_SIZE (50)    // Reduced from 1024 to 50, adapt to 16KB shared memory
+  // Calculation: 4 × 50 × 80 = 16,000 bytes ≈ 15.6KB
   
   
-  // 将CAN缓冲区放置在共享内存中，用于核间通信
+  // Place CAN buffer in shared memory for inter-core communication
   #define SHARED_CACHELINE_ALIGN  __attribute__((section(".sh_mem"), aligned(HPM_L1C_CACHELINE_SIZE)))
   #define SHARED_STRUCT_ALIGN     __attribute__((section(".sh_mem"), aligned(32)))
   SHARED_STRUCT_ALIGN share_buffer_t ram_buffer_block;
@@ -48,7 +54,8 @@
 
  
  
- void board_can_loopback_test_in_interrupt_mode(void)
+
+void board_can_loopback_test_in_interrupt_mode(void)
  {
      CAN_Type *ptr = BOARD_APP_CAN_BASE;
      can_config_t can_config;
@@ -63,21 +70,23 @@
          printf("CAN initialization failed, error code: %d\n", status);
          return;
      }
-     intc_m_enable_irq_with_priority(BOARD_APP_CAN_IRQn, 1);  // CAN中断优先级设为1，允许MBX中断嵌套
+     intc_m_enable_irq_with_priority(BOARD_APP_CAN_IRQn, 1);  // CAN interrupt priority set to 1, allow MBX interrupt nesting
  
      can_transmit_buf_t tx_buf;
      memset(&tx_buf, 0, sizeof(tx_buf));
      tx_buf.dlc = 8;
  
-     for (uint32_t i = 0; i < 8; i++) {
+          for (uint32_t i = 0; i < 8; i++) {
          tx_buf.data[i] = (uint8_t) i | (i << 4);
      }
- 
+
+     printf("Starting to send 2048 CAN messages...\n");
+     
      for (uint32_t i = 0; i < 2048; i++) {
          tx_buf.id = i;
          can_send_message_nonblocking(BOARD_APP_CAN_BASE, &tx_buf);
- 
-         /*mbx发送item_full_notice  */
+    
+         /* MBX send item_full_notice */
          if(ram_buffer_block.wait > 0)
          {
              
@@ -85,7 +94,7 @@
              while(1)
              {
                  if(can_send){
-                     mbx_send_message(HPM_MBX0A, (uint32_t)2);  // 发送当前计数作为消息
+                     mbx_send_message(HPM_MBX0A, (uint32_t)2);  // Send current count as message
                      ram_buffer_block.wait--;
                      break;
                  }
@@ -101,11 +110,12 @@
          while (!has_new_rcv_msg) {
  
          }
-         has_new_rcv_msg = false;
+                  has_new_rcv_msg = false;
          has_sent_out = false;
-         //printf("New message received, ID=%08x\n", s_can_rx_buf.id);
      }
- }
+     
+     printf("2048 CAN messages sent completed!\n");
+}
  
  int main(void)
  {
@@ -115,18 +125,24 @@
      //multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
      //memset(axi_sram_can_buffers, 1, sizeof(axi_sram_can_buffers));
     clock_add_to_group(clock_mbx0, 0);
-     //printf("ram_buffer_block = 0x%8X \n", &ram_buffer_block);
-     //printf("RAM_BUFFER_BLOCK_SIZE = %d  MAX_CAN_BUFFER_SIZE = %d\n", RAM_BUFFER_BLOCK_SIZE, MAX_CAN_BUFFER_SIZE);
+
     
      multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
      clock_cpu_delay_ms(1000);
     clock_add_to_group(clock_mbx0, 0);
-    
+
      
      ram_buffer_block_init();
      mbx_interrupt_init();
+     
+     // Initialize array
+
      board_can_loopback_test_in_interrupt_mode();
-     while(1);
+     
+   
+   
+     
+     while(1);  // Stay here after completion
     // while(1);
  
          

@@ -28,12 +28,12 @@ SDK_DECLARE_EXT_ISR_M(BOARD_APP_CAN_IRQn, board_can_isr)
 
          
          
-        // assert(ram_buffer_block.is_full == false);
-         while(ram_buffer_block.is_full == true);
+        assert(ram_buffer_block.is_full == false);
+         
          hpm_stat_t read_status = can_read_received_message(BOARD_APP_CAN_BASE, get_writeable_ram(&ram_buffer_block));
          
          if (read_status == status_success) {
-            printf("write to ram buffer success,the count is %d\n",count++);
+           // printf("write to ram buffer success,the count is %d\n",count++);
              has_new_rcv_msg = true;
              //printf("can isr exit");
            
@@ -87,7 +87,7 @@ void isr_mbx(void)
     } 
 
     
-    printf("MBX ISR: Exiting\n");
+    //printf("MBX ISR: Exiting\n");
 }
 
 

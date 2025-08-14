@@ -22,6 +22,9 @@
 can_receive_buf_t* get_writeable_ram(share_buffer_t* block);
 int8_t write_head_switch(share_buffer_t* block);
 
+// 定时器相关函数声明
+void timer_callback(void);
+
 
 
 #endif

@@ -25,7 +25,7 @@ void share_buffer_init(share_buffer_t* block, share_buffer_item_t* items, uint16
     block->wait = 0;
     block->max_wait = block->size - 1;
     block->write_head = &items[0];
-    block->consume_head = &items[0];
+    block->consume_head = &items[size-1];
     for(uint16_t i = 0; i < size - 1; i++)/*环形链表初始化*/
     {
         items[i].next = &items[i + 1];
@@ -90,6 +90,7 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
      if(block->write_head->next->status == SHARE_BUFFER_STATUS_IDLE)
      {
          block->wait++;
+         block->write_head->status = SHARE_BUFFER_STATUS_FULL;
          block->write_head = block->write_head->next;
          block->write_head->status = SHARE_BUFFER_STATUS_WRITING;
          block->write_head->current_index = 0;
@@ -104,10 +105,12 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
 
 #else
   /* consumer */
- 
+  
+ #define AXI_SRAM_CAN_BUFFER_COUNT (2048)
+ extern can_receive_buf_t axi_sram_can_buffers[AXI_SRAM_CAN_BUFFER_COUNT];
   int8_t Oconsume_head_switch(share_buffer_t* block)
   {
-  
+    //  printf("Oconsume_head_switch:block->consume_head->next->status = %x\n",block->consume_head->next->status);
       if(block->consume_head->next->status == SHARE_BUFFER_STATUS_FULL)
       {
           block->consume_head = block->consume_head->next;
@@ -117,5 +120,20 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
           return -1;
       }
   
+  }
+  
+  
+  int8_t Ocopy_to_axi_sram(share_buffer_t* block)
+  {
+      if(block->consume_head->status == SHARE_BUFFER_STATUS_READING)
+      {
+         memcpy(&axi_sram_can_buffers[block->consume_save_index], block->consume_head->data, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
+         block->consume_save_index += MAX_CAN_BUFFER_SIZE;
+         block->consume_head->status = SHARE_BUFFER_STATUS_IDLE;
+      
+         memset(block->consume_head->data, 0, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
+         return 0;
+      }
+      return -1;
   }
 #endif
