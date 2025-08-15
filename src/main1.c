@@ -68,35 +68,34 @@ extern volatile uint8_t notice_count;
 
      /* reciever */
      while (1) {
-         if (can_read) {
-             stat = mbx_retrieve_message(HPM_MBX0B, &i);
-
+        if (can_read) {
+            stat = mbx_retrieve_message(HPM_MBX0B, &i);
              if (stat == status_success) {
-                 //printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
-               //  printf("notice_count: %d\n", notice_count);
-                 ret = Oconsume_head_switch(&ram_buffer_block);
-                if(ret == 0)
-                {
-                    ret = Ocopy_to_axi_sram(&ram_buffer_block);
-                    if(ret == 0)
-                    {
-                      //  printf("copy to axi_sram success\n");
+                //printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
+              //  printf("notice_count: %d\n", notice_count);
+                ret = Oconsume_head_switch(&ram_buffer_block);
+               if(ret == 0)
+               {
+                   ret = Ocopy_to_axi_sram(&ram_buffer_block);
+                   if(ret == 0)
+                   {
+                     //  printf("copy to axi_sram success\n");
                       
-                    }
-                    else
-                    {
-                        printf("copy to axi_sram failed\n");
+                   }
+                   else
+                   {
+                       printf("copy to axi_sram failed\n");
                         
 
-                    }
-                }
-                else
-                {
-                    printf("consume_head_switch failed\n");
-                }
+                   }
+               }
+               else
+               {
+                   printf("consume_head_switch failed\n");
+               }
             
              } else {
-                printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
+               printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
  
              }
              
@@ -105,7 +104,7 @@ extern volatile uint8_t notice_count;
              mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
              if(notice_count == 40)
              {
-                break;
+               break;
              }
             }
          }
@@ -124,11 +123,11 @@ extern volatile uint8_t notice_count;
          }
          printf("\n");
          
-         // 每打印10个缓冲区数据后暂停一下，避免输出过快
-         if((i + 1) % 10 == 0)
-         {
-             clock_cpu_delay_ms(100);
-         }
+         //// 每打印10个缓冲区数据后暂停一下，避免输出过快
+         //if((i + 1) % 10 == 0)
+         //{
+         //    clock_cpu_delay_ms(100);
+         //}
      }
      printf("===complete ===\n\n");
  }

@@ -174,6 +174,9 @@ void share_buffer_max_speed_test(void)
         assert(ram_buffer_block.is_full == false);
        clock_cpu_delay_us(1);
        memcpy(get_writeable_ram(&ram_buffer_block), &can_buffers[i], sizeof(can_receive_buf_t));
+       // 内存屏障和缓存清理
+       __asm__ volatile ("fence" : : : "memory");  // 数据同步屏障
+       
        if(ram_buffer_block.wait > 0)
        {
            

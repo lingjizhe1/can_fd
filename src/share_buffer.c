@@ -63,7 +63,7 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
      if(block->write_head->current_index + 1> block->write_head->max_index){
          block->write_head->status = SHARE_BUFFER_STATUS_FULL;
          uint8_t index = block->write_head->current_index;
-             
+         share_buffer_item_t* writehead = block->write_head;     
          //printf("get_writeable_ram():write_head is full,switch to next item\n");
                       
          //item_full_notice();
@@ -74,7 +74,7 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
              block->is_full = true;
          }
        
-         return (can_receive_buf_t*)(block->write_head->data + index ); /* 返回当前item的data*/
+         return (can_receive_buf_t*)(writehead->data + index ); /* 返回当前item的data*/
      }else{                                                           /* item 未满*/
          
          block->write_head->current_index++;
