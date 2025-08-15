@@ -73,7 +73,7 @@ extern volatile uint8_t notice_count;
 
              if (stat == status_success) {
                  //printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
-                 //printf("notice_count: %d\n", notice_count);
+               //  printf("notice_count: %d\n", notice_count);
                  ret = Oconsume_head_switch(&ram_buffer_block);
                 if(ret == 0)
                 {
@@ -110,26 +110,26 @@ extern volatile uint8_t notice_count;
             }
          }
      
-     //// 循环打印axi_sram_can_buffers的数据
-     //printf("\n=== 打印axi_sram_can_buffers数据 ===\n");
-     //for(int i = 0; i < AXI_SRAM_CAN_BUFFER_COUNT; i++)
-     //{
-     //    printf("Buffer[%d]: ID=0x%08X, DLC=%d, Data: ", 
-     //           i, axi_sram_can_buffers[i].id, axi_sram_can_buffers[i].dlc);
+     // 循环打印axi_sram_can_buffers的数据
+     printf("\n=== 打印axi_sram_can_buffers数据 ===\n");
+     for(int i = 0; i < AXI_SRAM_CAN_BUFFER_COUNT; i++)
+     {
+         printf("Buffer[%d]: ID=0x%08X, DLC=%d, Data: ", 
+                i, axi_sram_can_buffers[i].id, axi_sram_can_buffers[i].dlc);
          
-     //    // 打印数据字节
-     //    for(int j = 0; j < 8; j++)
-     //    {
-     //        printf("0x%02X ", axi_sram_can_buffers[i].data[j]);
-     //    }
-     //    printf("\n");
+         // 打印数据字节
+         for(int j = 0; j < 8; j++)
+         {
+             printf("0x%02X ", axi_sram_can_buffers[i].data[j]);
+         }
+         printf("\n");
          
-     //    // 每打印10个缓冲区数据后暂停一下，避免输出过快
-     //    if((i + 1) % 10 == 0)
-     //    {
-     //        clock_cpu_delay_ms(100);
-     //    }
-     //}
+         // 每打印10个缓冲区数据后暂停一下，避免输出过快
+         if((i + 1) % 10 == 0)
+         {
+             clock_cpu_delay_ms(100);
+         }
+     }
      printf("===complete ===\n\n");
  }
  

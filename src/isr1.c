@@ -23,7 +23,8 @@
          notice_count++;
          mbx_disable_intr(MBX, MBX_CR_RWMVIE_MASK);
      } 
- 
+      
+    //  printf("core1:mbx_isr exit\n");
  }
 #endif
  

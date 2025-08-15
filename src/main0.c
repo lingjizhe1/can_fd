@@ -116,6 +116,79 @@ void board_can_loopback_test_in_interrupt_mode(void)
      
      printf("2048 CAN messages sent completed!\n");
 }
+
+#define CAN_BUFFER_COUNT (2048)
+can_receive_buf_t can_buffers[CAN_BUFFER_COUNT];
+
+void share_buffer_max_speed_test(void)
+{
+   // 初始化CAN缓冲区数组
+   for (int i = 0; i < CAN_BUFFER_COUNT; i++) {
+       // 清零整个缓冲区
+       memset(&can_buffers[i], 0, sizeof(can_receive_buf_t));
+       
+       // 设置CAN ID (递增从0到2047)
+       can_buffers[i].id = i;
+       
+       // 设置数据长度为8字节
+       can_buffers[i].dlc = 8;
+       
+       // 设置为标准帧（非扩展ID）
+       can_buffers[i].extend_id = 0;
+       
+       // 设置为数据帧（非远程帧）
+       can_buffers[i].remote_frame = 0;
+       
+       // 设置为CAN 2.0帧（非CANFD）
+       can_buffers[i].canfd_frame = 0;
+       
+       // 关闭比特率切换
+       can_buffers[i].bitrate_switch = 0;
+       
+       // 非回环消息
+       can_buffers[i].loopback_message = 0;
+       
+       // 无错误
+       can_buffers[i].error_type = 0;
+       can_buffers[i].error_state_indicator = 0;
+       
+       // 设置循环时间为0
+       can_buffers[i].cycle_time = 0;
+       
+       // 设置数据：00 11 22 33 44 55 66 77
+       // 注意：data字段在结构体中位于第8个字节开始的位置
+       uint8_t *data_ptr = (uint8_t*)&can_buffers[i].buffer[2]; // 跳过前两个32位字段
+       data_ptr[0] = 0x00;
+       data_ptr[1] = 0x11;
+       data_ptr[2] = 0x22;
+       data_ptr[3] = 0x33;
+       data_ptr[4] = 0x44;
+       data_ptr[5] = 0x55;
+       data_ptr[6] = 0x66;
+       data_ptr[7] = 0x77;
+       
+   }
+
+   for(int i = 0; i < CAN_BUFFER_COUNT; i++)
+   {
+        assert(ram_buffer_block.is_full == false);
+       clock_cpu_delay_us(1);
+       memcpy(get_writeable_ram(&ram_buffer_block), &can_buffers[i], sizeof(can_receive_buf_t));
+       if(ram_buffer_block.wait > 0)
+       {
+           
+           mbx_enable_intr(HPM_MBX0A, MBX_CR_TWMEIE_MASK);
+           while(1)
+           {
+               if(can_send){
+                   mbx_send_message(HPM_MBX0A, (uint32_t)2);  // 发送当前计数作为消息
+                   ram_buffer_block.wait--;
+                   break;
+               }
+           }
+       }
+   }
+}
  
  int main(void)
  {
@@ -137,9 +210,9 @@ void board_can_loopback_test_in_interrupt_mode(void)
      
      // Initialize array
 
-     board_can_loopback_test_in_interrupt_mode();
+     //board_can_loopback_test_in_interrupt_mode();
      
-   
+     share_buffer_max_speed_test();
    
      
      while(1);  // Stay here after completion
