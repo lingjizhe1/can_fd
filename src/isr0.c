@@ -2,19 +2,33 @@
 #include "multicore_common.h"
 #include "hpm_mbx_drv.h"
 #include "hpm_can_drv.h"
+#include "hpm_gptmr_drv.h"
 #include "board.h"
 #include "isr0.h"
 #include "global.h"
+#include "hpm_interrupt.h"
 volatile bool can_read = false;
 volatile bool can_send = false;
 
 #define MBX HPM_MBX0A
 #define MBX_IRQ IRQn_MBX0A
+
+// Timer related definitions
+#define TIMER_GPTMR BOARD_GPTMR
+#define TIMER_CH BOARD_GPTMR_CHANNEL
+#define TIMER_IRQ BOARD_GPTMR_IRQ
+
 extern volatile bool has_new_rcv_msg;
 extern volatile bool has_sent_out; 
 extern volatile bool has_error;
 extern volatile uint32_t error_flags;
 extern volatile can_receive_buf_t s_can_rx_buf;
+extern speed_test_t speed_test_data;
+
+// Timer interrupt variables
+static volatile uint8_t timer_count = 0;
+static volatile bool timer_enabled = true;
+static volatile bool print_results = false;
 
 SDK_DECLARE_EXT_ISR_M(BOARD_APP_CAN_IRQn, board_can_isr)
  void board_can_isr(void)
@@ -62,7 +76,7 @@ SDK_DECLARE_EXT_ISR_M(BOARD_APP_CAN_IRQn, board_can_isr)
      }
      can_clear_error_interrupt_flags(BOARD_APP_CAN_BASE, error_flags);
  }
- #endif
+
 
 
 void mbx_interrupt_init(void)
@@ -90,8 +104,110 @@ void isr_mbx(void)
     //printf("MBX ISR: Exiting\n");
 }
 
+// Timer interrupt service routine
+SDK_DECLARE_EXT_ISR_M(TIMER_IRQ, timer_isr)
+void timer_isr(void)
+{
+    if (gptmr_check_status(TIMER_GPTMR, GPTMR_CH_RLD_STAT_MASK(TIMER_CH))) {
+        gptmr_clear_status(TIMER_GPTMR, GPTMR_CH_RLD_STAT_MASK(TIMER_CH));
+        
+        if (timer_enabled && timer_count < 60) {
+            // Save current frame count with protection
+            //uint32_t mstatus = disable_global_irq(CSR_MSTATUS_MIE_MASK);
+            speed_test_data.frame_count[timer_count] = speed_test_data.frame_sent_count;
+            uint8_t current_count = timer_count;
+            timer_count++;
+            //enable_global_irq(mstatus);
+            
+            // Check if 60 seconds completed
+            if (timer_count >= 60) {
+                timer_enabled = false;
+                gptmr_disable_irq(TIMER_GPTMR, GPTMR_CH_RLD_IRQ_MASK(TIMER_CH));
+                print_results = true;
+            }
+        }
+    }
+}
 
+// Timer initialization function
+void timer_interrupt_init(void)
+{
+    uint32_t gptmr_freq;
+    gptmr_channel_config_t config;
 
+    // Initialize timer clock and pins
+    init_gptmr_pins(TIMER_GPTMR);
+    gptmr_freq = board_init_gptmr_clock(TIMER_GPTMR);
+    
+    // Get default configuration
+    gptmr_channel_get_default_config(TIMER_GPTMR, &config);
+    
+    // Set reload value for 1 second (1000ms)
+    config.reload = gptmr_freq / 1000 * 1000;
+    
+    // Configure timer channel
+    gptmr_channel_config(TIMER_GPTMR, TIMER_CH, &config, false);
+    
+    // Reset variables
+    timer_count = 0;
+    timer_enabled = true;
+    
+    // Enable timer interrupt
+    gptmr_enable_irq(TIMER_GPTMR, GPTMR_CH_RLD_IRQ_MASK(TIMER_CH));
+    intc_m_enable_irq_with_priority(TIMER_IRQ, 2);
+    
+    // Start timer
+    gptmr_start_counter(TIMER_GPTMR, TIMER_CH);
+}
 
+// Check and print results function
+void check_and_print_results(void)
+{
+    if (print_results) {
+        print_results = false;
+        
+        // Calculate frame differences for each second
+        uint64_t frame_per_second[60];
+        uint64_t min_frames = 0xFFFFFFFFFFFFFFFFULL;
+        uint64_t max_frames = 0;
+        uint64_t total_for_avg = 0;
+        
+        printf("Frame count results (60 seconds):\n");
+        for (int i = 0; i < 60; i++) {
+            if (i == 0) {
+                frame_per_second[i] = speed_test_data.frame_count[i];
+            } else {
+                frame_per_second[i] = speed_test_data.frame_count[i] - speed_test_data.frame_count[i-1];
+            }
+            
+            // Find min and max
+            if (frame_per_second[i] < min_frames) {
+                min_frames = frame_per_second[i];
+            }
+            if (frame_per_second[i] > max_frames) {
+                max_frames = frame_per_second[i];
+            }
+            
+            printf("Second %d: %llu frames\n", i + 1, frame_per_second[i]);
+        }
+        
+        // Calculate average excluding min and max
+        for (int i = 0; i < 60; i++) {
+            total_for_avg += frame_per_second[i];
+        }
+        total_for_avg -= min_frames;
+        total_for_avg -= max_frames;
+        
+        uint64_t average = total_for_avg / 58; // 60 - 2 (min and max)
+        
+        printf("\nStatistics:\n");
+        printf("Total frames sent: %llu\n", speed_test_data.frame_sent_count);
+        printf("Min frames per second: %llu\n", min_frames);
+        printf("Max frames per second: %llu\n", max_frames);
+        printf("Average frames per second (excluding min/max): %llu\n", average);
+    }
+}
+
+#endif
 
 

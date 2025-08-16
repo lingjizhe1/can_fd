@@ -12,8 +12,9 @@
  #include "isr0.h"
 
  #include "hpm_soc_feature.h"
- #include "hpm_mbx_drv.h"
- #include "hpm_gptmr_drv.h"
+#include "hpm_mbx_drv.h"
+#include "hpm_gptmr_drv.h"
+#include "hpm_interrupt.h"
 
 
 
@@ -49,7 +50,7 @@ extern  volatile bool can_send;
   SHARED_STRUCT_ALIGN share_buffer_item_t ram_buffer_block_items[RAM_BUFFER_BLOCK_SIZE];
   SHARED_CACHELINE_ALIGN can_receive_buf_t ram_buffer[RAM_BUFFER_BLOCK_SIZE][MAX_CAN_BUFFER_SIZE];
 
-
+speed_test_t speed_test_data;
 
 
  
@@ -168,14 +169,19 @@ void share_buffer_max_speed_test(void)
        data_ptr[7] = 0x77;
        
    }
-
-   for(int i = 0; i < CAN_BUFFER_COUNT; i++)
+   while(1)
    {
-        assert(ram_buffer_block.is_full == false);
-       clock_cpu_delay_us(1);
+        for(int i = 0; i < CAN_BUFFER_COUNT; i++)
+        {
+        // Protect frame count increment from timer interrupt
+        //uint32_t mstatus = disable_global_irq(CSR_MSTATUS_MIE_MASK);
+        speed_test_data.frame_sent_count++;
+        //enable_global_irq(mstatus);
+       
+  //clock_cpu_delay_us(1);
        memcpy(get_writeable_ram(&ram_buffer_block), &can_buffers[i], sizeof(can_receive_buf_t));
        // 内存屏障和缓存清理
-       __asm__ volatile ("fence" : : : "memory");  // 数据同步屏障
+      // __asm__ volatile ("fence" : : : "memory");  // 数据同步屏障
        
        if(ram_buffer_block.wait > 0)
        {
@@ -190,7 +196,12 @@ void share_buffer_max_speed_test(void)
                }
            }
        }
+       
+       // Check for timer results
+       check_and_print_results();
+       }
    }
+   
 }
  
  int main(void)
@@ -204,14 +215,18 @@ void share_buffer_max_speed_test(void)
 
     
      multicore_release_cpu(HPM_CORE1, SEC_CORE_IMG_START);
-     clock_cpu_delay_ms(1000);
-    clock_add_to_group(clock_mbx0, 0);
+     clock_cpu_delay_ms(3000);
+        clock_add_to_group(clock_mbx0, 0);
 
+    ram_buffer_block_init();
+    mbx_interrupt_init();
+    
+    // Initialize speed test data
+    memset(&speed_test_data, 0, sizeof(speed_test_data));
+    
+    timer_interrupt_init();
      
-     ram_buffer_block_init();
-     mbx_interrupt_init();
-     
-     // Initialize array
+    // Initialize array
 
      //board_can_loopback_test_in_interrupt_mode();
      

@@ -17,8 +17,8 @@ typedef struct share_buffer_item_t
 {
     can_receive_buf_t* data;
     share_buffer_status_t status;
-    uint8_t current_index;
-    uint8_t max_index;
+    uint16_t current_index;
+    uint16_t max_index;
     struct share_buffer_item_t* next;
 }share_buffer_item_t;
 
@@ -33,7 +33,11 @@ typedef struct {
     uint16_t consume_save_index;
 }share_buffer_t;
 
-
+typedef struct speed_test_t
+{
+    uint64_t frame_sent_count;
+    uint64_t frame_count[60];
+}speed_test_t;
 
 
 void share_buffer_item_init(share_buffer_item_t* item, can_receive_buf_t* data, uint16_t size);

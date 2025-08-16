@@ -25,8 +25,13 @@ build_tmp/
 *.dll
 *.exe
 sec_core_img.c
+.ninja_log
+.ninja_deps
+codemodel-v2
+
 # 库文件目录
 lib/
+
 output/
 
 # IDE项目文件

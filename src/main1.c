@@ -69,43 +69,44 @@ extern volatile uint8_t notice_count;
      /* reciever */
      while (1) {
         if (can_read) {
-            stat = mbx_retrieve_message(HPM_MBX0B, &i);
-             if (stat == status_success) {
+          //  stat = mbx_retrieve_message(HPM_MBX0B, &i);
+            // if (stat == status_success) {
                 //printf("core %d: got %ld\n", BOARD_RUNNING_CORE, i);
               //  printf("notice_count: %d\n", notice_count);
-                ret = Oconsume_head_switch(&ram_buffer_block);
-               if(ret == 0)
-               {
-                   ret = Ocopy_to_axi_sram(&ram_buffer_block);
-                   if(ret == 0)
-                   {
-                     //  printf("copy to axi_sram success\n");
+             //   ret = Oconsume_head_switch(&ram_buffer_block);
+             //  if(ret == 0)
+             //  {
+             //      ret = Ocopy_to_axi_sram(&ram_buffer_block);
+             //      if(ret == 0)
+             //      {
+             //        //  printf("copy to axi_sram success\n");
                       
-                   }
-                   else
-                   {
-                       printf("copy to axi_sram failed\n");
+             //      }
+             //      else
+             //      {
+             //          printf("copy to axi_sram failed\n");
                         
 
-                   }
-               }
-               else
-               {
-                   printf("consume_head_switch failed\n");
-               }
+             //      }
+             //  }
+             //  else
+             //  {
+             //      printf("consume_head_switch failed\n");
+             //  }
             
-             } else {
-               printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
+             //} else {
+             //  printf("core %d: error getting message\n", BOARD_RUNNING_CORE);
  
-             }
+             //}
              
                
-             can_read = false;
-             mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
-             if(notice_count == 40)
-             {
-               break;
-             }
+             //can_read = false;
+             //mbx_enable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
+             //if(notice_count == 40)
+             //{
+             // mbx_disable_intr(HPM_MBX0B, MBX_CR_RWMVIE_MASK);
+             // break;
+             //}
             }
          }
      
@@ -131,5 +132,6 @@ extern volatile uint8_t notice_count;
      }
      printf("===complete ===\n\n");
  }
+
  
  #endif

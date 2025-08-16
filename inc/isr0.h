@@ -6,5 +6,7 @@
 #include "board.h"
 
 void mbx_interrupt_init(void);
+void timer_interrupt_init(void);
+void check_and_print_results(void);
 
 #endif

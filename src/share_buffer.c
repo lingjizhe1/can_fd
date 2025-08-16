@@ -10,6 +10,14 @@
 
 #if (BOARD_RUNNING_CORE == HPM_CORE0)
 
+typedef struct
+{
+    uint64_t block_count;
+    
+}test_speed;
+
+test_speed test_speed_data;
+
 void share_buffer_item_init(share_buffer_item_t* item, can_receive_buf_t* data, uint16_t size)
 {
     item->data = data;
@@ -56,22 +64,27 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
      
   
      block->write_head->status = SHARE_BUFFER_STATUS_WRITING;
-             
-               
+    // printf("block->write_head->next->status = %x\n",&(block->write_head->next->status));
              
      /* item 满了*/
      if(block->write_head->current_index + 1> block->write_head->max_index){
-         block->write_head->status = SHARE_BUFFER_STATUS_FULL;
+        //printf("get_writeable_ram():write_head is full,switch to next item\n"); 
+        block->write_head->status = SHARE_BUFFER_STATUS_FULL;
          uint8_t index = block->write_head->current_index;
          share_buffer_item_t* writehead = block->write_head;     
          //printf("get_writeable_ram():write_head is full,switch to next item\n");
                       
          //item_full_notice();
+         zushe:
          ret = write_head_switch(block);
          if(ret == -1)
          {   
              //printf("get_writeable_ram():next item is not available\n");
-             block->is_full = true;
+            // block->is_full = true;
+             test_speed_data.block_count++;
+             //printf("block->write_head->next->status = %x\n",&(block->write_head->next->status));
+             //printf("block->write_head->next->status = %d\n",block->write_head->next->status);
+             goto zushe;
          }
        
          return (can_receive_buf_t*)(writehead->data + index ); /* 返回当前item的data*/
@@ -94,6 +107,8 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
          block->write_head = block->write_head->next;
          block->write_head->status = SHARE_BUFFER_STATUS_WRITING;
          block->write_head->current_index = 0;
+
+         //
          return 0;
      }else{
         // printf("write_head_switch():next item is not available\n");
@@ -129,7 +144,12 @@ can_receive_buf_t* get_writeable_ram(share_buffer_t* block)
       {
          memcpy(&axi_sram_can_buffers[block->consume_save_index], block->consume_head->data, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
          block->consume_save_index += MAX_CAN_BUFFER_SIZE;
+         if(block->consume_save_index > AXI_SRAM_CAN_BUFFER_COUNT)
+         {
+              block->consume_save_index = 0;
+         }
          block->consume_head->status = SHARE_BUFFER_STATUS_IDLE;
+         //printf("hello\n");
       
          memset(block->consume_head->data, 0, MAX_CAN_BUFFER_SIZE * sizeof(can_receive_buf_t));
          return 0;
